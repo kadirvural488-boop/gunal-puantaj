@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RMK Marine | Günal Gemi - Puantaj & Proje Adam-Saat Paneli</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- SheetJS (XLSX) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            navy: {
+              950: '#060a13',
+              900: '#0b1120',
+              800: '#111827',
+              700: '#1e293b',
+              600: '#334155',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #060a13;
+      color: #f1f5f9;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0b1120; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+
+  <!-- Toast Bildirim Alanı -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- Üst Navigasyon -->
+  <header class="bg-navy-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <!-- Logo & Başlık -->
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+            <i data-lucide="ship" class="w-5 h-5 text-white"></i>
+          </div>
+          <div class="truncate">
+            <h1 class="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+              RMK Marine <span class="text-cyan-400">| Günal Gemi</span>
+            </h1>
+            <p class="text-xs text-slate-400 truncate">Puantaj &amp; Proje Bazlı Adam-Saat Sistemi</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 Ana Sekme -->
+      <nav class="flex items-center gap-1 bg-navy-950 p-1 rounded-xl border border-slate-800 overflow-x-auto">
+        <button type="button" onclick="switchTab('daily')" id="tabBtn_daily" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-cyan-600 text-white shadow">
+          <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+          <span>Günlük Puantaj &amp; Mesai</span>
+        </button>
+        <button type="button" onclick="switchTab('monthly')" id="tabBtn_monthly" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+          <span>Aylık Proje Raporu</span>
+        </button>
+        <button type="button" onclick="switchTab('personnel')" id="tabBtn_personnel" class="tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60">
+          <i data-lucide="users" class="w-4 h-4"></i>
+          <span>Personel Yönetimi</span>
+        </button>
+      </nav>
+
+      <!-- Sağ Hızlı Butonlar -->
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" onclick="openModal('projectModal')" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium transition flex items-center gap-1.5">
+          <i data-lucide="folder-kanban" class="w-4 h-4 text-cyan-400"></i>
+          <span>Projeler</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ANA İÇERİK -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ===================================================================== -->
+    <!-- SEKME 1: GÜNLÜK PUANTAJ & MESAİ                                       -->
+    <!-- ===================================================================== -->
+    <div id="tab_daily" class="space-y-6">
+
+      <!-- Excel Yükleme & Tarih/Mola Ayarları -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div id="dropZone" class="lg:col-span-2 bg-navy-900 border-2 border-dashed border-slate-700 hover:border-cyan-500/70 rounded-2xl p-5 transition cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-4 group">
+          <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" class="hidden" />
+          <div class="flex items-center gap-4 text-center sm:text-left flex-col sm:flex-row">
+            <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-105 transition shrink-0">
+              <i data-lucide="file-up" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h2 class="text-sm sm:text-base font-semibold text-white">Kapı Hareketleri veya Günlük Puantaj RP Yükle</h2>
+              <p class="text-xs text-slate-400 mt-1">
+                <span class="text-slate-300 font-medium">.xlsx, .xls, .csv</span> dosyasını sürükleyin. Format A (Kapı) ve Format B (Puantaj RP) otomatik tanınır.
+              </p>
+              <p id="loadedFileName" class="text-xs text-cyan-400 font-medium mt-1 hidden"></p>
+            </div>
+          </div>
+          <button type="button" onclick="document.getElementById('excelInput').click()" class="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-semibold transition shrink-0 shadow-lg shadow-cyan-600/20">
+            Dosya Seç
+          </button>
+        </div>
+
+        <div class="bg-navy-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between gap-3">
+          <div>
+            <label for="daySelector" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              Tarih Seçimi
+            </label>
+            <select id="daySelector" onchange="onDayChange()" disabled class="w-full bg-navy-800 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50">
+              <option value="ALL">Önce Excel yükleyin...</option>
+            </select>
+          </div>
+
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+            <span class="text-xs text-slate-300 font-medium">Öğle Molası Düş (1 saat)</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="lunchBreakToggle" class="sr-only peer" checked onchange="onLunchToggle()" />
+              <div class="w-10 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600"></div>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Aylık Yükleme Takvimi -->
+      <section class="bg-navy-900 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="calendar-days" class="w-4 h-4 text-cyan-400"></i>
+              <span>Aylık Yükleme Takvimi</span>
+            </h2>
+            <span id="calendarSummaryBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+              0 Yüklendi / 0 Eksik
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="changeCalendarMonth(-1)" class="p-1.5 rounded-lg bg-navy-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition" title="Önceki Ay">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <span id="calendarMonthLabel" class="text-xs sm:text-sm font-bold text-white min-w-[120px] text-center">Kasım 2026</span>
+            <button type="button" onclick="changeCalendarMonth(1)" class="p-1.5 rounded-lg bg-navy-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition" title="Sonraki Ay">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+          <div>Pzt</div><div>Sal</div><div>Çar</div><div>Per</div><div>Cum</div><div>Cmt</div><div>Paz</div>
+        </div>
+        <div id="uploadCalendarGrid" class="grid grid-cols-7 gap-1.5"></div>
+
+        <div class="flex flex-wrap items-center gap-4 pt-2 border-t border-slate-800/80 text-xs text-slate-300">
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded bg-emerald-500/30 border border-emerald-500"></span>
+            <span>Yüklendi</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded bg-rose-500/10 border border-rose-500/60"></span>
+            <span>Henüz Yüklenmedi</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-3 h-3 rounded bg-cyan-500/20 ring-2 ring-cyan-400"></span>
+            <span>Seçili Gün</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Canlı Proje Bazlı Adam-Saat Özeti Kartları -->
+      <section class="space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+            <span>Proje Bazlı Adam-Saat Özeti</span>
+          </h2>
+          <div class="flex items-center gap-3">
+            <span id="dashboardScopeLabel" class="text-xs text-slate-400">Tüm Günler</span>
+            <button type="button" onclick="exportDailyExcel()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center gap-1.5">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>Günlük Puantaj İndir (.xlsx)</span>
+            </button>
+          </div>
+        </div>
+        <div id="dailyProjectCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      </section>
+
+      <!-- Kontrol Gereken / Eksik Kartlar Uyarı Paneli -->
+      <section id="errorPanel" class="hidden bg-amber-950/20 border border-amber-500/40 rounded-2xl overflow-hidden">
+        <div class="px-5 py-3.5 bg-amber-500/10 border-b border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-amber-300">Kontrol Gereken / Eksik Kartlar</h3>
+              <p class="text-xs text-amber-200/70">Eksik giriş/çıkış, ters saat veya 1 saatten kısa / 15 saatten uzun kayıtları düzeltip onaylayın.</p>
+            </div>
+          </div>
+          <span id="errorBadge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 self-start sm:self-auto">
+            0 Kayıt
+          </span>
+        </div>
+        <div id="errorList" class="divide-y divide-amber-500/20 max-h-80 overflow-y-auto"></div>
+      </section>
+
+      <!-- Günlük Puantaj & Akşam Mesai Tablosu -->
+      <section class="bg-navy-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-white">Personel Puantaj &amp; Akşam Mesai Girişi</h3>
+            <p class="text-xs text-slate-400">08:00 öncesi girişler 08:00 kabul edilir. Hem giriş hem çıkış boşsa tatil/devamsızlık (0 saat) sayılır.</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Toplu Proje Atama -->
+            <div class="flex items-center gap-1.5 bg-navy-800 border border-slate-700 rounded-xl p-1">
+              <select id="bulkProjectSelect" class="bg-transparent text-xs text-slate-200 px-2 py-1 focus:outline-none"></select>
+              <button type="button" onclick="applyBulkProject()" class="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition">
+                Seçilenlere Proje Ata
+              </button>
+            </div>
+
+            <!-- Arama -->
+            <div class="relative flex-1 sm:w-44">
+              <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+              <input type="text" id="dailySearchInput" oninput="renderDailyTab()" placeholder="Personel ara..." class="w-full bg-navy-800 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+            </div>
+
+            <!-- Durum Filtresi -->
+            <select id="dailyStatusFilter" onchange="renderDailyTab()" class="bg-navy-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+              <option value="all">Tümü</option>
+              <option value="ok">Onaylı</option>
+              <option value="error">Hatalı / Şüpheli</option>
+              <option value="absent">Gelmeyen / Tatil (0s)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-navy-800/80 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
+                <th class="py-3.5 px-4 w-10">
+                  <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked)" class="rounded bg-navy-900 border-slate-600 text-cyan-500 focus:ring-cyan-500" />
+                </th>
+                <th class="py-3.5 px-3 font-semibold">Tarih</th>
+                <th class="py-3.5 px-3 font-semibold">Personel</th>
+                <th class="py-3.5 px-3 font-semibold">Giriş / Çıkış</th>
+                <th class="py-3.5 px-3 font-semibold">Normal (Sa)</th>
+                <th class="py-3.5 px-3 font-semibold">Akşam Mesai (Sa)</th>
+                <th class="py-3.5 px-3 font-semibold">Proje</th>
+                <th class="py-3.5 px-3 font-semibold">Durum</th>
+              </tr>
+            </thead>
+            <tbody id="dailyTableBody" class="divide-y divide-slate-800/70 text-sm"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- SEKME 2: AYLIK PROJE RAPORU                                           -->
+    <!-- ===================================================================== -->
+    <div id="tab_monthly" class="hidden space-y-6">
+
+      <!-- Filtre & İndirme Barı -->
+      <section class="bg-navy-900 border border-slate-800 rounded-2xl p-5 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+          <div>
+            <label for="monthlyMonthSelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Ay Seçimi</label>
+            <select id="monthlyMonthSelect" onchange="renderMonthlyTab()" class="w-full bg-navy-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"></select>
+          </div>
+          <div>
+            <label for="monthlyProjectFilter" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Proje Filtresi</label>
+            <select id="monthlyProjectFilter" onchange="renderMonthlyTab()" class="w-full bg-navy-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"></select>
+          </div>
+        </div>
+
+        <button type="button" onclick="exportMonthlyExcel()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 shrink-0">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          <span>Excel İndir (.xlsx)</span>
+        </button>
+      </section>
+
+      <!-- Aylık Proje Özet Kartları -->
+      <section id="monthlyProjectCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></section>
+
+      <!-- Kişi Bazında Aylık Proje Kırılımlı Tablo -->
+      <section class="bg-navy-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-white">Kişi Bazlı Aylık Adam-Saat &amp; Proje Kırılımı</h3>
+            <p class="text-xs text-slate-400">"İşten Çıktı" statüsündeki personeller de aylık raporda görünmeye devam eder.</p>
+          </div>
+          <div class="relative w-full sm:w-56">
+            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input type="text" id="monthlySearchInput" oninput="renderMonthlyTab()" placeholder="Raporda personel ara..." class="w-full bg-navy-800 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-navy-800/80 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
+                <th class="py-3.5 px-4 font-semibold">Personel</th>
+                <th class="py-3.5 px-4 font-semibold">Durum</th>
+                <th class="py-3.5 px-4 font-semibold">Normal Saat</th>
+                <th class="py-3.5 px-4 font-semibold">Fazla Mesai</th>
+                <th class="py-3.5 px-4 font-semibold">Toplam Adam-Saat</th>
+                <th class="py-3.5 px-4 font-semibold">Proje Kırılımı</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyTableBody" class="divide-y divide-slate-800/70 text-sm"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- SEKME 3: PERSONEL YÖNETİMİ                                            -->
+    <!-- ===================================================================== -->
+    <div id="tab_personnel" class="hidden space-y-6">
+
+      <!-- Manuel Personel Ekleme & Yedekleme -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Manuel Personel Ekle -->
+        <div class="bg-navy-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="user-plus" class="w-4 h-4 text-cyan-400"></i>
+            <span>Yeni Personel Ekle</span>
+          </h2>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input type="text" id="manualPersonName" placeholder="Ad Soyad (örn: AHMET YILMAZ)" class="flex-1 bg-navy-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+            <select id="manualPersonProject" class="bg-navy-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500"></select>
+            <button type="button" onclick="addManualPersonnel()" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition shrink-0">
+              Ekle
+            </button>
+          </div>
+        </div>
+
+        <!-- Yedekleme -->
+        <div class="bg-navy-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between gap-3">
+          <div>
+            <h2 class="text-base font-bold text-white">Veri Yedekleme &amp; Geri Yükleme</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Excel'den gelen yeni isimler otomatik "Aktif" eklenir. Pasifler hesap dışı kalır.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" onclick="exportJsonBackup()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+              <i data-lucide="download-cloud" class="w-4 h-4"></i>
+              <span>Yedek İndir (JSON)</span>
+            </button>
+            <input type="file" id="jsonRestoreInput" accept=".json" class="hidden" onchange="importJsonBackup(event)" />
+            <button type="button" onclick="document.getElementById('jsonRestoreInput').click()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+              <i data-lucide="upload-cloud" class="w-4 h-4 text-cyan-400"></i>
+              <span>Yedek Yükle</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Personel Tablosu -->
+      <section class="bg-navy-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span id="personnelCountBadge" class="px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">0 Personel</span>
+          </div>
+          <div class="relative w-full sm:w-64">
+            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input type="text" id="personnelSearchInput" oninput="renderPersonnelTab()" placeholder="Personel ara..." class="w-full bg-navy-800 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-navy-800/80 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">
+                <th class="py-3.5 px-4 font-semibold">Ad Soyad</th>
+                <th class="py-3.5 px-4 font-semibold">Varsayılan Proje</th>
+                <th class="py-3.5 px-4 font-semibold">Statü</th>
+                <th class="py-3.5 px-4 font-semibold text-right">İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="personnelTableBody" class="divide-y divide-slate-800/70 text-sm"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- Proje Yönetimi Modalı -->
+  <div id="projectModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-navy-900 border border-slate-700 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="folder-kanban" class="w-5 h-5 text-cyan-400"></i> Proje Yönetimi
+        </h3>
+        <button type="button" onclick="closeModal('projectModal')" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="flex gap-2">
+          <input type="text" id="newProjectInput" placeholder="Yeni proje kodu/adı (örn: 2135)" class="flex-1 bg-navy-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+          <button type="button" onclick="addProject()" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition">
+            Ekle
+          </button>
+        </div>
+        <div id="projectList" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+      </div>
+      <div class="px-5 py-3 bg-navy-800/50 border-t border-slate-800 flex justify-end">
+        <button type="button" onclick="closeModal('projectModal')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition">
+          Kapat
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mükerrer Tarih Uyarısı Modalı -->
+  <div id="duplicateDateModal" class="fixed inset-0 z-50 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-navy-900 border border-amber-500/50 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 bg-amber-500/10 border-b border-amber-500/30 flex items-center justify-between">
+        <h3 class="text-base font-bold text-amber-300 flex items-center gap-2">
+          <span>⚠️ Mükerrer Tarih Uyarısı</span>
+        </h3>
+        <button type="button" onclick="resolveDuplicateUpload('cancel')" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <p class="text-sm text-slate-200">
+          Yüklediğiniz Excel dosyasında sistemde <strong class="text-amber-300">zaten kayıtlı olan</strong> tarihler tespit edildi:
+        </p>
+        <div id="duplicateDatesList" class="bg-navy-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-amber-200 max-h-32 overflow-y-auto"></div>
+        <p class="text-xs text-slate-400">
+          Mevcut verilerin üzerine yazmak mı, yoksa sadece yeni tarihleri eklemek mi istersiniz?
+        </p>
+      </div>
+      <div class="px-5 py-4 bg-navy-800/60 border-t border-slate-800 flex flex-col sm:flex-row justify-end gap-2">
+        <button type="button" onclick="resolveDuplicateUpload('cancel')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs sm:text-sm font-medium transition">
+          İptal Et
+        </button>
+        <button type="button" onclick="resolveDuplicateUpload('skip_duplicates')" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-semibold transition">
+          Sadece Yeni Tarihleri Ekle
+        </button>
+        <button type="button" onclick="resolveDuplicateUpload('overwrite')" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-semibold transition">
+          Üzerine Yaz (Güncelle)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. DURUM YÖNETİMİ VE LOCALSTORAGE
+    // =========================================================================
+    const STORAGE_KEYS = {
+      PROJECTS: 'rmk_v3_projects',
+      PERSONNEL: 'rmk_v3_personnel',
+      RECORDS: 'rmk_v3_records',
+      LUNCH_BREAK: 'rmk_v3_lunch_break'
+    };
+
+    const DEFAULT_PROJECTS = ['2126', '2130', '2132', 'Tamir Bakım'];
+    const DEFAULT_EXCLUDED_PERSONNEL = [
+      'GÖKHAN GÜNAL',
+      'HACI AHMET KAYA',
+      'RAMAZAN GÜNAL'
+    ];
+
+    const DEFAULT_PERSONNEL_PROJECTS = {
+      'FERHAT ZENGİN': '2126', 'GÖKHAN GÜNAL': '2126', 'HAVA KOÇAK': '2126', 'YAKUP GÜMÜŞCÜ': '2126',
+      'HÜSEYİN ÖZTÜRK': '2126', 'NİHAT ERKOL': '2126', 'ÖMER FARUK ÇAYIR': '2126', 'TEYFİK TETİKÇİ': '2126',
+      'UFUK KALYONCU': '2126', 'AYHAN ÇAYIR': '2126', 'İSMAİL TURGUT': '2126', 'SALMAN İLHAN': '2126',
+      'ADEM AKYEL': '2130', 'AHMET ŞERİF YETKİN': '2130', 'MEHMET ALİ KOÇAK': '2130', 'AHMET KARAKÜTÜK': '2130',
+      'BATUHAN ŞAHİN': '2130', 'ABDULLAH TURGUT': '2130', 'KEMAL KEL': '2130', 'BERAT HAYRİOĞLU': '2130',
+      'ŞERİF ERYILMAZ': '2130', 'ÖZMEN AYDIN': '2130', 'SALİH BİLGİLİ': '2130', 'AHMET DURSUN': '2130',
+      'RECEP GÜLMEZ': '2130', 'YAŞAR AKBAŞ': '2130', 'MUSA YOLOĞLU': '2130', 'MUSTAFA ÇALIŞKAN': '2130',
+      'UĞURCAN GÜLER': '2130', 'OSMAN KEREM FIRTINA': '2130', 'MUSHAB TURGUT': '2130', 'RIDVAN GÜNEŞ': '2130',
+      'YUSUF KILIÇ': '2130', 'MUSTAFA YALDIRAK': '2130', 'OZAN ÖZTÜRK': '2130', 'ÜZEYİR FİDAN': '2130',
+      'MEHMET FİDAN': '2130', 'BAYRAM CAN': '2130', 'NEBİ ÖZ': '2130', 'ZİHNİ DURAN': '2130',
+      'HASAN SUNA': '2130', 'MEHMET DERELİ': '2130', 'HÜSEYİN ALPAKLI': '2130', 'EREN TURHAN': '2130',
+      'TUĞRUL ÇALIŞ': '2130', 'UMUT TOPAL': '2130', 'SADIK YÜNCÜ': '2130', 'SALİH KANDEMİR': '2130',
+      'SEDAT SAYLAN': '2130', 'MUHAMMED YILDIRIM': '2130', 'MUHARREM CAN': '2130', 'ABDULKERİM BAYRAKCI': '2130',
+      'MURAT ACAR': '2130', 'MUHAMMET KARATAŞ': '2130', 'MEHMET CAN ÖZSOY': '2130', 'ABDULLAH KOÇAK': '2130',
+      'ERDAL ÇENDEOĞLU': '2130', 'HÜSEYİN ARIKAN': '2130', 'CANER KAHRİMAN': '2130', 'BİLGİN SOLAKOĞLU': '2130',
+      'KADİR VURAL': '2130', 'KADİR SAVAŞ': '2130', 'MÜSEYİP DİKTAŞ': '2130', 'ZEHNİ AYDIN': '2130',
+      'SADULLAH KOÇAK': '2130', 'ALAATTİN KURNAZ': '2130', 'MAHMUT BULŞAN': '2130', 'İBRAHİM YÜNLÜ': '2130',
+      'İLKNUR DEMİR': '2130',
+      'ÜSTÜN YILDIRIM': '2132', 'MERT KOÇAK': '2132', 'BERAT TAŞ': '2132', 'İSMAİL BAYRAK': '2132',
+      'İSRAFİL DURMUŞ': '2132', 'MEHMET ÖKSÜZ': '2132', 'TURGAY ACAR': '2132', 'RAMAZAN ÖZTÜRK': '2132',
+      'BAHADIR KILIÇ': '2132', 'YUSUF DEMİRKAN': '2132'
+    };
+
+    const NAME_ALIASES = {
+      'ABDULKERİM BAYRAKÇI': 'ABDULKERİM BAYRAKCI',
+      'ALAETTİN KURNAZ': 'ALAATTİN KURNAZ',
+      'MEHMETCAN ÖZSOY': 'MEHMET CAN ÖZSOY',
+      'MUSAB TURGUT': 'MUSHAB TURGUT',
+      'TEVFİK TEKCİ': 'TEYFİK TETİKÇİ',
+      'YAKUP GÜMÜŞÇÜ': 'YAKUP GÜMÜŞCÜ',
+      'İBRAHİM YÜNCÜ': 'İBRAHİM YÜNLÜ'
+    };
+
+    const TR_MONTH_NAMES = [
+      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+    ];
+
+    function refreshIcons() {
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+      }
+    }
+
+    function normalizeTrUpper(str) {
+      return String(str || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/i/g, 'İ')
+        .replace(/ı/g, 'I')
+        .replace(/ğ/g, 'Ğ')
+        .replace(/ü/g, 'Ü')
+        .replace(/ş/g, 'Ş')
+        .replace(/ö/g, 'Ö')
+        .replace(/ç/g, 'Ç')
+        .toUpperCase();
+    }
+
+    function resolveCanonicalKey(fullName) {
+      const norm = normalizeTrUpper(fullName);
+      return NAME_ALIASES[norm] || norm;
+    }
+
+    function isPersonnelPassive(fullName) {
+      const norm = normalizeTrUpper(fullName);
+      const aliased = resolveCanonicalKey(fullName);
+      if (DEFAULT_EXCLUDED_PERSONNEL.includes(norm) || DEFAULT_EXCLUDED_PERSONNEL.includes(aliased)) {
+        // Kullanıcı manuel olarak aktif yaptıysa state.personnel'e bak
+        const pEntry = state.personnel[fullName] || state.personnel[norm] || state.personnel[aliased];
+        if (pEntry && pEntry.status === 'active') return false;
+        return true;
+      }
+      if (state.personnel[fullName] && state.personnel[fullName].status === 'passive') return true;
+      for (const [key, val] of Object.entries(state.personnel)) {
+        const keyNorm = normalizeTrUpper(key);
+        if ((keyNorm === norm || keyNorm === aliased) && val.status === 'passive') return true;
+      }
+      return false;
+    }
+
+    let state = {
+      activeTab: 'daily',
+      projects: [],
+      personnel: {},
+      records: [],
+      selectedDay: 'ALL',
+      lunchBreak: true,
+      selectedIds: new Set(),
+      calendarYear: 2026,
+      calendarMonth: 10,
+      pendingUpload: null
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      setupDropZone();
+      populateDaySelector();
+      populateBulkProjectSelect();
+      populateManualPersonProject();
+      renderDailyTab();
+      refreshIcons();
+    });
+
+    function loadState() {
+      try {
+        const p = localStorage.getItem(STORAGE_KEYS.PROJECTS);
+        state.projects = p ? JSON.parse(p) : [...DEFAULT_PROJECTS];
+
+        const per = localStorage.getItem(STORAGE_KEYS.PERSONNEL);
+        state.personnel = per ? JSON.parse(per) : {};
+
+        Object.entries(DEFAULT_PERSONNEL_PROJECTS).forEach(([name, proj]) => {
+          const existingKey = Object.keys(state.personnel).find(k => resolveCanonicalKey(k) === name);
+          if (!existingKey) {
+            const isPassive = DEFAULT_EXCLUDED_PERSONNEL.includes(name);
+            state.personnel[name] = {
+              defaultProject: proj,
+              status: isPassive ? 'passive' : 'active'
+            };
+          } else if (!state.personnel[existingKey].defaultProject) {
+            state.personnel[existingKey].defaultProject = proj;
+          }
+        });
+
+        DEFAULT_EXCLUDED_PERSONNEL.forEach(defName => {
+          const exists = Object.keys(state.personnel).some(k => normalizeTrUpper(k) === defName);
+          if (!exists) {
+            state.personnel[defName] = { defaultProject: state.projects[0] || '', status: 'passive' };
+          }
+        });
+
+        const rec = localStorage.getItem(STORAGE_KEYS.RECORDS);
+        state.records = rec ? JSON.parse(rec) : [];
+
+        const lb = localStorage.getItem(STORAGE_KEYS.LUNCH_BREAK);
+        state.lunchBreak = lb !== null ? JSON.parse(lb) : true;
+        document.getElementById('lunchBreakToggle').checked = state.lunchBreak;
+      } catch (err) {
+        console.error('LocalStorage okuma hatası:', err);
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(state.projects));
+        localStorage.setItem(STORAGE_KEYS.PERSONNEL, JSON.stringify(state.personnel));
+        localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(state.records));
+        localStorage.setItem(STORAGE_KEYS.LUNCH_BREAK, JSON.stringify(state.lunchBreak));
+      } catch (err) {
+        showToast('Veri kaydedilirken hata oluştu.', 'error');
+      }
+    }
+
+    // =========================================================================
+    // 2. SEKME GEÇİŞİ
+    // =========================================================================
+    function switchTab(tabName) {
+      state.activeTab = tabName;
+      ['daily', 'monthly', 'personnel'].forEach(t => {
+        const panel = document.getElementById(`tab_${t}`);
+        const btn = document.getElementById(`tabBtn_${t}`);
+        if (panel) panel.classList.toggle('hidden', t !== tabName);
+        if (btn) {
+          if (t === tabName) {
+            btn.className = 'tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap bg-cyan-600 text-white shadow';
+          } else {
+            btn.className = 'tab-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60';
+          }
+        }
+      });
+
+      if (tabName === 'daily') renderDailyTab();
+      if (tabName === 'monthly') {
+        populateMonthlyFilters();
+        renderMonthlyTab();
+      }
+      if (tabName === 'personnel') {
+        populateManualPersonProject();
+        renderPersonnelTab();
+      }
+      refreshIcons();
+    }
+
+    // =========================================================================
+    // 3. EXCEL YÜKLEME & OTOMATİK FORMAT TANIMA (FORMAT A & FORMAT B)
+    // =========================================================================
+    function setupDropZone() {
+      const dz = document.getElementById('dropZone');
+      const input = document.getElementById('excelInput');
+      if (!dz || !input) return;
+
+      dz.addEventListener('dragover', e => {
+        e.preventDefault();
+        dz.classList.add('border-cyan-500', 'bg-navy-800/40');
+      });
+      dz.addEventListener('dragleave', () => {
+        dz.classList.remove('border-cyan-500', 'bg-navy-800/40');
+      });
+      dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.classList.remove('border-cyan-500', 'bg-navy-800/40');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+      });
+      input.addEventListener('change', e => {
+        if (e.target.files.length) handleFile(e.target.files[0]);
+        input.value = '';
+      });
+    }
+
+    function handleFile(file) {
+      if (typeof XLSX === 'undefined') {
+        showToast('Excel kütüphanesi (SheetJS) yüklenemedi. İnternet bağlantınızı kontrol edin.', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+          if (!rows.length) {
+            showToast('Excel dosyası boş görünüyor.', 'error');
+            return;
+          }
+
+          const fileLabel = document.getElementById('loadedFileName');
+          fileLabel.textContent = `Son Yüklenen: ${file.name}`;
+          fileLabel.classList.remove('hidden');
+
+          parseRows(rows);
+        } catch (err) {
+          console.error(err);
+          showToast('Dosya okunurken hata oluştu.', 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function getColVal(row, candidates) {
+      const keys = Object.keys(row);
+      for (const cand of candidates) {
+        const normCand = normalizeTrUpper(cand);
+        const foundKey = keys.find(k => normalizeTrUpper(k) === normCand);
+        if (foundKey !== undefined) return row[foundKey];
+      }
+      return '';
+    }
+
+    function parseRows(rows) {
+      let skippedPassiveCount = 0;
+
+      const sampleKeys = Object.keys(rows[0] || {}).map(k => normalizeTrUpper(k));
+      const isFormatB = sampleKeys.includes('KİŞİ NO') || sampleKeys.includes('GİRİŞ') || (sampleKeys.includes('TARİH') && !sampleKeys.includes('GİRİŞ TARİH'));
+
+      const parsedRecords = [];
+      const newPersonnelMap = {};
+      const fileDaysSet = new Set();
+
+      rows.forEach((row, idx) => {
+        const adi = String(getColVal(row, ['Adı', 'Ad', 'ADI'])).trim();
+        const soyadi = String(getColVal(row, ['Soyadı', 'Soyad', 'SOYADI'])).trim();
+        const fullName = `${adi} ${soyadi}`.replace(/\s+/g, ' ').trim();
+        if (!fullName) return;
+
+        if (isPersonnelPassive(fullName)) {
+          skippedPassiveCount++;
+          return;
+        }
+
+        let inDate = '';
+        let inTime = '';
+        let outDate = '';
+        let outTime = '';
+        let note = '';
+
+        if (isFormatB) {
+          const rawDate = getColVal(row, ['Tarih', 'TARİH']);
+          inDate = formatExcelDate(rawDate);
+          outDate = inDate;
+          inTime = formatExcelTime(getColVal(row, ['Giriş', 'GİRİŞ']));
+          outTime = formatExcelTime(getColVal(row, ['Çıkış', 'ÇIKIŞ']));
+          note = String(getColVal(row, ['Açıklama', 'AÇIKLAMA']) || '').trim();
+        } else {
+          inDate = formatExcelDate(getColVal(row, ['Giriş Tarih', 'Giriş Tarihi']));
+          inTime = formatExcelTime(getColVal(row, ['Giriş Saat', 'Giriş Saati']));
+          outDate = formatExcelDate(getColVal(row, ['Çıkış Tarih', 'Çıkış Tarihi'])) || inDate;
+          outTime = formatExcelTime(getColVal(row, ['Çıkış Saat', 'Çıkış Saati']));
+        }
+
+        const dayKey = inDate || outDate || 'Tarihsiz';
+        fileDaysSet.add(dayKey);
+
+        const canonicalLookup = resolveCanonicalKey(fullName);
+        const existingPersKey = Object.keys(state.personnel).find(k => resolveCanonicalKey(k) === canonicalLookup);
+        const canonicalName = existingPersKey || fullName;
+
+        if (!existingPersKey && !newPersonnelMap[canonicalName]) {
+          const defaultProj = DEFAULT_PERSONNEL_PROJECTS[canonicalLookup] || state.projects[0] || '';
+          newPersonnelMap[canonicalName] = {
+            defaultProject: defaultProj,
+            status: 'active'
+          };
+        }
+
+        const defaultProjForRec = existingPersKey
+          ? state.personnel[existingPersKey].defaultProject
+          : newPersonnelMap[canonicalName].defaultProject;
+
+        const rec = {
+          id: `rec_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+          day: dayKey,
+          fullName: canonicalName,
+          inDate: inDate || dayKey,
+          inTime,
+          outDate: outDate || dayKey,
+          outTime,
+          note,
+          project: defaultProjForRec || state.projects[0] || '',
+          overtimeHours: 0,
+          normalHours: 0,
+          status: 'ok',
+          errorReason: ''
+        };
+
+        evaluateRecord(rec);
+        parsedRecords.push(rec);
+      });
+
+      if (!parsedRecords.length) {
+        showToast('Yüklenecek geçerli kayıt bulunamadı.', 'error');
+        return;
+      }
+
+      const existingDaysSet = new Set(state.records.map(r => r.day));
+      const duplicateDays = [...fileDaysSet].filter(d => existingDaysSet.has(d)).sort();
+
+      state.pendingUpload = {
+        parsedRecords,
+        newPersonnelMap,
+        duplicateDays,
+        isFormatB,
+        skippedPassiveCount
+      };
+
+      if (duplicateDays.length > 0) {
+        document.getElementById('duplicateDatesList').textContent = duplicateDays.join(', ');
+        openModal('duplicateDateModal');
+      } else {
+        commitPendingUpload('new_only');
+      }
+    }
+
+    function resolveDuplicateUpload(mode) {
+      closeModal('duplicateDateModal');
+      if (mode === 'cancel' || !state.pendingUpload) {
+        state.pendingUpload = null;
+        showToast('Yükleme iptal edildi.', 'info');
+        return;
+      }
+      commitPendingUpload(mode);
+    }
+
+    function commitPendingUpload(mode) {
+      const pending = state.pendingUpload;
+      if (!pending) return;
+      state.pendingUpload = null;
+
+      const { parsedRecords, newPersonnelMap, duplicateDays, isFormatB, skippedPassiveCount } = pending;
+      const dupSet = new Set(duplicateDays);
+
+      let recordsToAdd = parsedRecords;
+      if (mode === 'overwrite') {
+        state.records = state.records.filter(r => !dupSet.has(r.day));
+      } else if (mode === 'skip_duplicates') {
+        recordsToAdd = parsedRecords.filter(r => !dupSet.has(r.day));
+      }
+
+      if (!recordsToAdd.length) {
+        showToast('Eklenecek yeni tarih bulunamadı.', 'info');
+        return;
+      }
+
+      let newPersonnelCount = 0;
+      Object.entries(newPersonnelMap).forEach(([name, info]) => {
+        if (!state.personnel[name]) {
+          state.personnel[name] = info;
+          newPersonnelCount++;
+        }
+      });
+
+      state.records.push(...recordsToAdd);
+
+      const firstDay = recordsToAdd[0].day;
+      const parts = firstDay.split('.');
+      if (parts.length === 3) {
+        const m = parseInt(parts[1], 10);
+        const y = parseInt(parts[2], 10);
+        if (!isNaN(m) && !isNaN(y)) {
+          state.calendarMonth = m - 1;
+          state.calendarYear = y;
+        }
+      }
+
+      saveState();
+      populateDaySelector();
+      renderDailyTab();
+
+      const formatLabel = isFormatB ? 'Format B (Puantaj RP)' : 'Format A (Kapı Hareketleri)';
+      showToast(
+        `${formatLabel}: ${recordsToAdd.length} kayıt eklendi.${newPersonnelCount > 0 ? ` (${newPersonnelCount} yeni personel)` : ''}${skippedPassiveCount > 0 ? ` (${skippedPassiveCount} pasif atlandı)` : ''}`,
+        'success'
+      );
+    }
+
+    function formatExcelDate(val) {
+      if (val === '' || val === null || val === undefined) return '';
+      if (typeof val === 'number') {
+        const d = XLSX.SSF.parse_date_code(val);
+        if (d) {
+          return `${String(d.d).padStart(2, '0')}.${String(d.m).padStart(2, '0')}.${d.y}`;
+        }
+      }
+      const str = String(val).trim();
+      const isoMatch = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+      if (isoMatch) {
+        return `${isoMatch[3].padStart(2, '0')}.${isoMatch[2].padStart(2, '0')}.${isoMatch[1]}`;
+      }
+      return str.replace(/\//g, '.');
+    }
+
+    function formatExcelTime(val) {
+      if (val === '' || val === null || val === undefined) return '';
+      if (typeof val === 'number') {
+        const totalMinutes = Math.round(val * 24 * 60);
+        const h = Math.floor(totalMinutes / 60) % 24;
+        const m = totalMinutes % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
+      const str = String(val).trim();
+      const match = str.match(/^(\d{1,2}):(\d{2})/);
+      if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+      return '';
+    }
+
+    function timeToMinutes(tStr) {
+      if (!tStr) return null;
+      const parts = tStr.split(':');
+      if (parts.length < 2) return null;
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (isNaN(h) || isNaN(m)) return null;
+      return h * 60 + m;
+    }
+
+    // =========================================================================
+    // 4. HATA YAKALAMA & DAKİKASI DAKİKASINA HESAPLAMA (08:00 KURALI)
+    // =========================================================================
+    function evaluateRecord(rec) {
+      const hasIn = !!rec.inTime;
+      const hasOut = !!rec.outTime;
+
+      if (!hasIn && !hasOut) {
+        rec.normalHours = 0;
+        rec.status = 'absent';
+        rec.errorReason = rec.note ? `Tatil / Devamsızlık (${rec.note})` : 'Gelmeyen / Tatil (0 saat)';
+        return;
+      }
+
+      if (hasIn && !hasOut) {
+        rec.normalHours = 0;
+        rec.status = 'error';
+        rec.errorReason = 'Çıkış Kartı Eksik';
+        return;
+      }
+
+      if (!hasIn && hasOut) {
+        rec.normalHours = 0;
+        rec.status = 'error';
+        rec.errorReason = 'Giriş Kartı Eksik';
+        return;
+      }
+
+      const inMin = timeToMinutes(rec.inTime);
+      const outMin = timeToMinutes(rec.outTime);
+
+      if (inMin === null || outMin === null) {
+        rec.normalHours = 0;
+        rec.status = 'error';
+        rec.errorReason = 'Geçersiz Saat Formatı';
+        return;
+      }
+
+      if (outMin < inMin) {
+        rec.normalHours = 0;
+        rec.status = 'error';
+        rec.errorReason = 'Ters Saat (Çıkış < Giriş)';
+        return;
+      }
+
+      const effectiveInMin = Math.max(inMin, 480); // 08:00 öncesi 08:00 kabul edilir
+      let diffMinutes = outMin - effectiveInMin;
+      if (diffMinutes < 0) diffMinutes = 0;
+
+      if (diffMinutes < 60) {
+        rec.normalHours = Number((diffMinutes / 60).toFixed(2));
+        rec.status = 'error';
+        rec.errorReason = `Şüpheli Süre (${diffMinutes} dk)`;
+        return;
+      }
+
+      if (diffMinutes > 900) {
+        rec.normalHours = Number((diffMinutes / 60).toFixed(2));
+        rec.status = 'error';
+        rec.errorReason = 'Şüpheli Süre (15s üzeri)';
+        return;
+      }
+
+      if (state.lunchBreak && diffMinutes > 270) {
+        diffMinutes -= 60;
+      }
+
+      rec.normalHours = Number((diffMinutes / 60).toFixed(2));
+      rec.status = 'ok';
+      rec.errorReason = '';
+    }
+
+    function onLunchToggle() {
+      state.lunchBreak = document.getElementById('lunchBreakToggle').checked;
+      state.records.forEach(evaluateRecord);
+      saveState();
+      renderDailyTab();
+      showToast(state.lunchBreak ? 'Öğle molası (1 saat) düşülüyor.' : 'Öğle molası düşümü kapatıldı.', 'info');
+    }
+
+    // =========================================================================
+    // 5. GÜNLÜK SEKME RENDER & TAKVİM
+    // =========================================================================
+    function populateDaySelector() {
+      const sel = document.getElementById('daySelector');
+      const days = [...new Set(state.records.map(r => r.day))].sort((a, b) => {
+        const [da, ma, ya] = a.split('.').map(Number);
+        const [db, mb, yb] = b.split('.').map(Number);
+        return new Date(ya || 2026, (ma || 1) - 1, da || 1) - new Date(yb || 2026, (mb || 1) - 1, db || 1);
+      });
+
+      if (!days.length) {
+        sel.innerHTML = '<option value="ALL">Önce Excel yükleyin...</option>';
+        sel.disabled = true;
+        state.selectedDay = 'ALL';
+        return;
+      }
+
+      sel.disabled = false;
+      sel.innerHTML = `<option value="ALL">Tüm Günler (${days.length} Gün)</option>` +
+        days.map(d => `<option value="${d}" ${state.selectedDay === d ? 'selected' : ''}>${d}</option>`).join('');
+    }
+
+    function onDayChange() {
+      state.selectedDay = document.getElementById('daySelector').value;
+      state.selectedIds.clear();
+      document.getElementById('selectAllCheckbox').checked = false;
+
+      if (state.selectedDay !== 'ALL') {
+        const parts = state.selectedDay.split('.');
+        if (parts.length === 3) {
+          const m = parseInt(parts[1], 10);
+          const y = parseInt(parts[2], 10);
+          if (!isNaN(m) && !isNaN(y)) {
+            state.calendarMonth = m - 1;
+            state.calendarYear = y;
+          }
+        }
+      }
+      renderDailyTab();
+    }
+
+    function changeCalendarMonth(delta) {
+      state.calendarMonth += delta;
+      if (state.calendarMonth < 0) {
+        state.calendarMonth = 11;
+        state.calendarYear--;
+      } else if (state.calendarMonth > 11) {
+        state.calendarMonth = 0;
+        state.calendarYear++;
+      }
+      renderUploadCalendar();
+      refreshIcons();
+    }
+
+    function selectCalendarDay(dayStr) {
+      state.selectedDay = dayStr;
+      const sel = document.getElementById('daySelector');
+      if ([...sel.options].some(o => o.value === dayStr)) {
+        sel.value = dayStr;
+      } else {
+        sel.value = 'ALL';
+      }
+      state.selectedIds.clear();
+      document.getElementById('selectAllCheckbox').checked = false;
+      renderDailyTab();
+    }
+
+    function renderUploadCalendar() {
+      const grid = document.getElementById('uploadCalendarGrid');
+      const label = document.getElementById('calendarMonthLabel');
+      const badge = document.getElementById('calendarSummaryBadge');
+      if (!grid || !label || !badge) return;
+
+      const year = state.calendarYear;
+      const month = state.calendarMonth;
+      label.textContent = `${TR_MONTH_NAMES[month]} ${year}`;
+
+      const uploadedDaysSet = new Set(state.records.map(r => r.day));
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDayJs = new Date(year, month, 1).getDay();
+      const startOffset = (firstDayJs + 6) % 7;
+
+      let uploadedCount = 0;
+      let missingCount = 0;
+      let cellsHtml = '';
+
+      for (let i = 0; i < startOffset; i++) {
+        cellsHtml += `<div class="h-10 rounded-lg bg-navy-950/40"></div>`;
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dayStr = `${String(d).padStart(2, '0')}.${String(month + 1).padStart(2, '0')}.${year}`;
+        const isUploaded = uploadedDaysSet.has(dayStr);
+        const isSelected = state.selectedDay === dayStr;
+
+        if (isUploaded) uploadedCount++;
+        else missingCount++;
+
+        let cls = isUploaded
+          ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-200 hover:bg-emerald-500/30'
+          : 'bg-rose-500/10 border-rose-500/40 text-rose-300/90 hover:bg-rose-500/20';
+
+        if (isSelected) {
+          cls += ' ring-2 ring-cyan-400 font-extrabold';
+        }
+
+        cellsHtml += `
+          <button type="button" onclick="selectCalendarDay('${dayStr}')" title="${dayStr} - ${isUploaded ? 'Yüklendi' : 'Henüz Yüklenmedi'}" class="h-10 rounded-lg border text-xs font-semibold transition flex flex-col items-center justify-center ${cls}">
+            <span>${d}</span>
+            <span class="w-1.5 h-1.5 rounded-full mt-0.5 ${isUploaded ? 'bg-emerald-400' : 'bg-rose-400/70'}"></span>
+          </button>
+        `;
+      }
+
+      grid.innerHTML = cellsHtml;
+      badge.textContent = `${uploadedCount} Yüklendi / ${missingCount} Eksik`;
+    }
+
+    function getDayFilteredRecords() {
+      const activeRecs = state.records.filter(r => !isPersonnelPassive(r.fullName));
+      if (state.selectedDay === 'ALL' || !state.selectedDay) return activeRecs;
+      return activeRecs.filter(r => r.day === state.selectedDay);
+    }
+
+    function renderDailyTab() {
+      const dayRecords = getDayFilteredRecords();
+      document.getElementById('dashboardScopeLabel').textContent = state.selectedDay === 'ALL' ? 'Tüm Günler' : state.selectedDay;
+
+      renderUploadCalendar();
+      renderProjectCards('dailyProjectCardsGrid', dayRecords);
+      renderErrorPanel(dayRecords);
+      renderDailyTable(dayRecords);
+      refreshIcons();
+    }
+
+    function renderProjectCards(containerId, recordsList) {
+      const container = document.getElementById(containerId);
+      const stats = {};
+      state.projects.forEach(p => {
+        stats[p] = { normal: 0, overtime: 0, total: 0, workers: new Set() };
+      });
+
+      recordsList.forEach(r => {
+        if (r.status === 'absent') return;
+        const p = r.project || 'Diğer';
+        if (!stats[p]) stats[p] = { normal: 0, overtime: 0, total: 0, workers: new Set() };
+        stats[p].normal += r.normalHours;
+        stats[p].overtime += r.overtimeHours;
+        stats[p].total += (r.normalHours + r.overtimeHours);
+        if (r.normalHours > 0 || r.overtimeHours > 0) stats[p].workers.add(r.fullName);
+      });
+
+      const colors = [
+        'from-cyan-500/20 to-blue-600/10 border-cyan-500/30 text-cyan-400',
+        'from-emerald-500/20 to-teal-600/10 border-emerald-500/30 text-emerald-400',
+        'from-violet-500/20 to-purple-600/10 border-violet-500/30 text-violet-400',
+        'from-amber-500/20 to-orange-600/10 border-amber-500/30 text-amber-400'
+      ];
+
+      container.innerHTML = Object.entries(stats).map(([proj, data], idx) => {
+        const theme = colors[idx % colors.length];
+        return `
+          <div class="bg-gradient-to-br ${theme} border rounded-2xl p-4 flex flex-col justify-between gap-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-lg bg-navy-950/60 border border-white/10 text-white">${proj}</span>
+              <span class="text-xs text-slate-300 font-medium">${data.workers.size} Kişi</span>
+            </div>
+            <div>
+              <div class="text-2xl font-extrabold text-white tracking-tight">${data.total.toFixed(2)} <span class="text-xs font-medium text-slate-400">sa</span></div>
+              <div class="text-xs text-slate-300 mt-1 flex items-center gap-3">
+                <span>Normal: <strong class="text-white">${data.normal.toFixed(2)}</strong></span>
+                <span>Mesai: <strong class="text-amber-300">${data.overtime.toFixed(2)}</strong></span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderErrorPanel(recordsList) {
+      const errors = recordsList.filter(r => r.status === 'error');
+      const panel = document.getElementById('errorPanel');
+      const list = document.getElementById('errorList');
+      document.getElementById('errorBadge').textContent = `${errors.length} Kayıt`;
+
+      if (!errors.length) {
+        panel.classList.add('hidden');
+        return;
+      }
+
+      panel.classList.remove('hidden');
+      list.innerHTML = errors.map(r => `
+        <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-navy-900/40">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-semibold text-white text-sm">${r.fullName}</span>
+              <span class="text-xs text-slate-400">(${r.day})</span>
+              <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">${r.errorReason}</span>
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <div class="flex items-center gap-1.5">
+              <label class="text-xs text-slate-400">Giriş:</label>
+              <input type="time" id="fixIn_${r.id}" value="${r.inTime || '08:00'}" class="bg-navy-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+            </div>
+            <div class="flex items-center gap-1.5">
+              <label class="text-xs text-slate-400">Çıkış:</label>
+              <input type="time" id="fixOut_${r.id}" value="${r.outTime || '16:30'}" class="bg-navy-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+            </div>
+            <button type="button" onclick="fixRecord('${r.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition">
+              Kaydet &amp; Onayla
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function fixRecord(id) {
+      const rec = state.records.find(r => r.id === id);
+      if (!rec) return;
+      rec.inTime = document.getElementById(`fixIn_${id}`).value;
+      rec.outTime = document.getElementById(`fixOut_${id}`).value;
+      evaluateRecord(rec);
+      saveState();
+      renderDailyTab();
+      showToast(`${rec.fullName} kaydı güncellendi.`, 'success');
+    }
+
+    function renderDailyTable(recordsList) {
+      const tbody = document.getElementById('dailyTableBody');
+      const q = normalizeTrUpper(document.getElementById('dailySearchInput').value);
+      const statusF = document.getElementById('dailyStatusFilter').value;
+
+      const filtered = recordsList.filter(r => {
+        const matchQ = !q || normalizeTrUpper(r.fullName).includes(q);
+        const matchS = statusF === 'all' || r.status === statusF;
+        return matchQ && matchS;
+      });
+
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-10 text-center text-slate-500 text-sm">Gösterilecek kayıt bulunamadı.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(r => {
+        const checked = state.selectedIds.has(r.id) ? 'checked' : '';
+        const projOptions = state.projects.map(p =>
+          `<option value="${p}" ${r.project === p ? 'selected' : ''}>${p}</option>`
+        ).join('');
+
+        let statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Onaylı</span>`;
+        if (r.status === 'error') {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">${r.errorReason}</span>`;
+        } else if (r.status === 'absent') {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-700/60 text-slate-300 border border-slate-600/50">${r.errorReason}</span>`;
+        }
+
+        return `
+          <tr class="hover:bg-navy-800/50 transition ${r.status === 'absent' ? 'opacity-65' : ''}">
+            <td class="py-3 px-4">
+              <input type="checkbox" ${checked} onchange="toggleRowSelect('${r.id}', this.checked)" class="rounded bg-navy-900 border-slate-600 text-cyan-500 focus:ring-cyan-500" />
+            </td>
+            <td class="py-3 px-3 text-xs text-slate-400 whitespace-nowrap">${r.day}</td>
+            <td class="py-3 px-3 font-medium text-white whitespace-nowrap">${r.fullName}</td>
+            <td class="py-3 px-3 text-xs text-slate-300 whitespace-nowrap font-mono">
+              ${r.inTime || '--:--'} <span class="text-slate-500">→</span> ${r.outTime || '--:--'}
+            </td>
+            <td class="py-3 px-3 font-semibold text-cyan-300 whitespace-nowrap">${r.normalHours.toFixed(2)}</td>
+            <td class="py-3 px-3 whitespace-nowrap">
+              <div class="flex items-center gap-1">
+                <input type="number" step="0.5" min="0" value="${r.overtimeHours}" onchange="setOvertime('${r.id}', this.value)" class="w-16 bg-navy-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-amber-300 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                <button type="button" onclick="addOvertime('${r.id}', 1)" class="px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">+1s</button>
+                <button type="button" onclick="addOvertime('${r.id}', 2)" class="px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">+2s</button>
+                <button type="button" onclick="addOvertime('${r.id}', 3)" class="px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300">+3s</button>
+              </div>
+            </td>
+            <td class="py-3 px-3 whitespace-nowrap">
+              <select onchange="changeRecordProject('${r.id}', this.value)" class="bg-navy-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                ${projOptions}
+              </select>
+            </td>
+            <td class="py-3 px-3 whitespace-nowrap">${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function setOvertime(id, val) {
+      const rec = state.records.find(r => r.id === id);
+      if (!rec) return;
+      rec.overtimeHours = Math.max(0, parseFloat(val) || 0);
+      saveState();
+      renderDailyTab();
+    }
+
+    function addOvertime(id, hrs) {
+      const rec = state.records.find(r => r.id === id);
+      if (!rec) return;
+      rec.overtimeHours = Number((rec.overtimeHours + hrs).toFixed(2));
+      saveState();
+      renderDailyTab();
+    }
+
+    function changeRecordProject(id, proj) {
+      const rec = state.records.find(r => r.id === id);
+      if (!rec) return;
+      rec.project = proj;
+      saveState();
+      renderDailyTab();
+    }
+
+    function toggleRowSelect(id, isChecked) {
+      if (isChecked) state.selectedIds.add(id);
+      else state.selectedIds.delete(id);
+    }
+
+    function toggleSelectAll(isChecked) {
+      const recs = getDayFilteredRecords();
+      if (isChecked) recs.forEach(r => state.selectedIds.add(r.id));
+      else state.selectedIds.clear();
+      renderDailyTab();
+    }
+
+    function populateBulkProjectSelect() {
+      const sel = document.getElementById('bulkProjectSelect');
+      if (sel) sel.innerHTML = state.projects.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    function applyBulkProject() {
+      if (!state.selectedIds.size) {
+        showToast('Lütfen önce tablodan personel seçin.', 'error');
+        return;
+      }
+      const proj = document.getElementById('bulkProjectSelect').value;
+      let count = 0;
+      state.records.forEach(r => {
+        if (state.selectedIds.has(r.id)) {
+          r.project = proj;
+          count++;
+        }
+      });
+      state.selectedIds.clear();
+      document.getElementById('selectAllCheckbox').checked = false;
+      saveState();
+      renderDailyTab();
+      showToast(`${count} kaydın projesi "${proj}" olarak güncellendi.`, 'success');
+    }
+
+    // =========================================================================
+    // 6. AYLIK PROJE RAPORU & EXCEL İNDİRME
+    // =========================================================================
+    function extractMonthKey(dayStr) {
+      const parts = String(dayStr || '').split('.');
+      if (parts.length === 3) return `${parts[1]}.${parts[2]}`;
+      return 'Diğer';
+    }
+
+    function populateMonthlyFilters() {
+      const mSel = document.getElementById('monthlyMonthSelect');
+      const pSel = document.getElementById('monthlyProjectFilter');
+
+      const months = [...new Set(state.records.map(r => extractMonthKey(r.day)))].sort();
+      mSel.innerHTML = `<option value="ALL">Tüm Aylar</option>` +
+        months.map(m => `<option value="${m}">${m}</option>`).join('');
+
+      pSel.innerHTML = `<option value="ALL">Tüm Projeler</option>` +
+        state.projects.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    function getMonthlyFilteredRecords() {
+      const m = document.getElementById('monthlyMonthSelect').value;
+      const p = document.getElementById('monthlyProjectFilter').value;
+      return state.records.filter(r => {
+        if (isPersonnelPassive(r.fullName)) return false;
+        const matchM = m === 'ALL' || extractMonthKey(r.day) === m;
+        const matchP = p === 'ALL' || r.project === p;
+        return matchM && matchP;
+      });
+    }
+
+    function renderMonthlyTab() {
+      const recs = getMonthlyFilteredRecords();
+      renderProjectCards('monthlyProjectCardsGrid', recs);
+
+      const q = normalizeTrUpper(document.getElementById('monthlySearchInput').value);
+      const tbody = document.getElementById('monthlyTableBody');
+
+      const byPerson = {};
+      recs.forEach(r => {
+        if (!byPerson[r.fullName]) {
+          byPerson[r.fullName] = { normal: 0, overtime: 0, total: 0, projects: {} };
+        }
+        const entry = byPerson[r.fullName];
+        entry.normal += r.normalHours;
+        entry.overtime += r.overtimeHours;
+        entry.total += (r.normalHours + r.overtimeHours);
+        if (r.normalHours > 0 || r.overtimeHours > 0) {
+          const p = r.project || 'Diğer';
+          entry.projects[p] = (entry.projects[p] || 0) + (r.normalHours + r.overtimeHours);
+        }
+      });
+
+      const rows = Object.entries(byPerson)
+        .filter(([name]) => !q || normalizeTrUpper(name).includes(q))
+        .sort((a, b) => a[0].localeCompare(b[0], 'tr'));
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-slate-500 text-sm">Aylık raporda gösterilecek veri yok.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(([name, data]) => {
+        const isLeft = state.personnel[name]?.status === 'left';
+        const statusHtml = isLeft
+          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30">İşten Çıktı</span>`
+          : `<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Aktif</span>`;
+
+        const breakdown = Object.entries(data.projects)
+          .map(([p, hrs]) => `<span class="inline-block px-2 py-0.5 rounded bg-navy-800 border border-slate-700 text-xs text-slate-300 mr-1 mb-1">${p}: <strong class="text-white">${hrs.toFixed(2)}s</strong></span>`)
+          .join('') || '<span class="text-xs text-slate-500">-</span>';
+
+        return `
+          <tr class="hover:bg-navy-800/50 transition">
+            <td class="py-3 px-4 font-semibold text-white whitespace-nowrap">${name}</td>
+            <td class="py-3 px-4 whitespace-nowrap">${statusHtml}</td>
+            <td class="py-3 px-4 text-cyan-300 font-medium whitespace-nowrap">${data.normal.toFixed(2)}</td>
+            <td class="py-3 px-4 text-amber-300 font-medium whitespace-nowrap">${data.overtime.toFixed(2)}</td>
+            <td class="py-3 px-4 text-white font-bold whitespace-nowrap">${data.total.toFixed(2)}</td>
+            <td class="py-3 px-4">${breakdown}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function exportDailyExcel() {
+      const recs = getDayFilteredRecords();
+      if (!recs.length) {
+        showToast('İndirilecek günlük kayıt yok.', 'error');
+        return;
+      }
+      const data = recs.map(r => ({
+        'Tarih': r.day,
+        'Ad Soyad': r.fullName,
+        'Giriş': r.inTime,
+        'Çıkış': r.outTime,
+        'Normal Saat': r.normalHours,
+        'Akşam Mesai': r.overtimeHours,
+        'Toplam Saat': Number((r.normalHours + r.overtimeHours).toFixed(2)),
+        'Proje': r.project,
+        'Durum': r.status === 'ok' ? 'Onaylı' : r.errorReason
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Günlük Puantaj');
+      XLSX.writeFile(wb, `RMK_Gunluk_Puantaj_${state.selectedDay}.xlsx`);
+      showToast('Günlük puantaj Excel dosyası indirildi.', 'success');
+    }
+
+    function exportMonthlyExcel() {
+      const recs = getMonthlyFilteredRecords();
+      if (!recs.length) {
+        showToast('İndirilecek aylık veri yok.', 'error');
+        return;
+      }
+      const byPerson = {};
+      recs.forEach(r => {
+        if (!byPerson[r.fullName]) byPerson[r.fullName] = { normal: 0, overtime: 0, total: 0, projects: {} };
+        byPerson[r.fullName].normal += r.normalHours;
+        byPerson[r.fullName].overtime += r.overtimeHours;
+        byPerson[r.fullName].total += (r.normalHours + r.overtimeHours);
+        if (r.normalHours > 0 || r.overtimeHours > 0) {
+          const p = r.project || 'Diğer';
+          byPerson[r.fullName].projects[p] = (byPerson[r.fullName].projects[p] || 0) + (r.normalHours + r.overtimeHours);
+        }
+      });
+
+      const data = Object.entries(byPerson)
+        .sort((a, b) => a[0].localeCompare(b[0], 'tr'))
+        .map(([name, d]) => ({
+          'Ad Soyad': name,
+          'Statü': state.personnel[name]?.status === 'left' ? 'İşten Çıktı' : 'Aktif',
+          'Normal Saat': Number(d.normal.toFixed(2)),
+          'Fazla Mesai': Number(d.overtime.toFixed(2)),
+          'Toplam Adam-Saat': Number(d.total.toFixed(2)),
+          'Proje Kırılımı': Object.entries(d.projects).map(([p, h]) => `${p}: ${h.toFixed(2)}s`).join(' | ')
+        }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Aylık Proje Raporu');
+      XLSX.writeFile(wb, `RMK_Aylik_Proje_Raporu.xlsx`);
+      showToast('Aylık proje raporu Excel dosyası indirildi.', 'success');
+    }
+
+    // =========================================================================
+    // 7. PERSONEL YÖNETİMİ & YEDEKLEME
+    // =========================================================================
+    function populateManualPersonProject() {
+      const sel = document.getElementById('manualPersonProject');
+      if (sel) sel.innerHTML = state.projects.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    function addManualPersonnel() {
+      const nameInput = document.getElementById('manualPersonName');
+      const projSelect = document.getElementById('manualPersonProject');
+      const rawName = nameInput.value.trim();
+      if (!rawName) {
+        showToast('Lütfen Ad Soyad girin.', 'error');
+        return;
+      }
+      const normName = normalizeTrUpper(rawName);
+      const exists = Object.keys(state.personnel).some(k => normalizeTrUpper(k) === normName);
+      if (exists) {
+        showToast('Bu personel zaten listede mevcut.', 'error');
+        return;
+      }
+      state.personnel[normName] = {
+        defaultProject: projSelect.value || state.projects[0] || '',
+        status: 'active'
+      };
+      nameInput.value = '';
+      saveState();
+      renderPersonnelTab();
+      showToast(`${normName} personel listesine eklendi.`, 'success');
+    }
+
+    function renderPersonnelTab() {
+      const q = normalizeTrUpper(document.getElementById('personnelSearchInput').value);
+      const tbody = document.getElementById('personnelTableBody');
+      const names = Object.keys(state.personnel)
+        .filter(n => !q || normalizeTrUpper(n).includes(q))
+        .sort((a, b) => a.localeCompare(b, 'tr'));
+
+      document.getElementById('personnelCountBadge').textContent = `${names.length} Personel`;
+
+      if (!names.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="py-10 text-center text-slate-500 text-sm">Kayıtlı personel yok.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = names.map(name => {
+        const info = state.personnel[name];
+        const isLeft = info.status === 'left';
+        const isPassive = info.status === 'passive';
+        const projOptions = state.projects.map(p =>
+          `<option value="${p}" ${info.defaultProject === p ? 'selected' : ''}>${p}</option>`
+        ).join('');
+
+        let statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Aktif</span>`;
+        if (isLeft) {
+          statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30">İşten Çıktı</span>`;
+        } else if (isPassive) {
+          statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-600/30 text-slate-300 border border-slate-500/40">Pasif / Hesap Dışı</span>`;
+        }
+
+        return `
+          <tr class="hover:bg-navy-800/50 transition ${isPassive ? 'opacity-65' : ''}">
+            <td class="py-3 px-4 font-semibold text-white whitespace-nowrap">${name}</td>
+            <td class="py-3 px-4 whitespace-nowrap">
+              <select onchange="updatePersonnelDefaultProject('${name}', this.value)" ${isPassive ? 'disabled' : ''} class="bg-navy-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50">
+                ${projOptions}
+              </select>
+            </td>
+            <td class="py-3 px-4 whitespace-nowrap">${statusBadge}</td>
+            <td class="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
+              ${isPassive
+                ? `<button type="button" onclick="setPersonnelStatus('${name}', 'active')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-emerald-600 hover:bg-emerald-500 text-white">Aktif Yap</button>`
+                : `
+                  <button type="button" onclick="setPersonnelStatus('${name}', '${isLeft ? 'active' : 'left'}')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition ${isLeft ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30'}">
+                    ${isLeft ? 'Tekrar Aktif Yap' : 'İşten Çıktı İşaretle'}
+                  </button>
+                  <button type="button" onclick="setPersonnelStatus('${name}', 'passive')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-slate-700 hover:bg-slate-600 text-slate-200">
+                    Pasif Yap
+                  </button>
+                `
+              }
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function updatePersonnelDefaultProject(name, proj) {
+      if (!state.personnel[name]) return;
+      state.personnel[name].defaultProject = proj;
+      saveState();
+      showToast(`${name} varsayılan projesi "${proj}" yapıldı.`, 'info');
+    }
+
+    function setPersonnelStatus(name, newStatus) {
+      if (!state.personnel[name]) return;
+      state.personnel[name].status = newStatus;
+      saveState();
+      renderPersonnelTab();
+      if (state.activeTab === 'daily') renderDailyTab();
+      const label = newStatus === 'passive' ? 'Pasif / Hesap Dışı' : (newStatus === 'left' ? 'İşten Çıktı' : 'Aktif');
+      showToast(`${name} statüsü "${label}" olarak güncellendi.`, 'success');
+    }
+
+    function exportJsonBackup() {
+      const payload = {
+        projects: state.projects,
+        personnel: state.personnel,
+        records: state.records,
+        lunchBreak: state.lunchBreak,
+        exportedAt: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `RMK_Puantaj_Yedek_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('JSON yedeği indirildi.', 'success');
+    }
+
+    function importJsonBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.projects) state.projects = data.projects;
+          if (data.personnel) state.personnel = data.personnel;
+          if (data.records) state.records = data.records;
+          if (typeof data.lunchBreak === 'boolean') state.lunchBreak = data.lunchBreak;
+          saveState();
+          populateDaySelector();
+          populateBulkProjectSelect();
+          populateManualPersonProject();
+          switchTab(state.activeTab);
+          showToast('Yedek başarıyla geri yüklendi.', 'success');
+        } catch (err) {
+          showToast('Geçersiz JSON yedek dosyası.', 'error');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    // =========================================================================
+    // 8. PROJE YÖNETİMİ MODALI & TOAST
+    // =========================================================================
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      if (id === 'projectModal') renderProjectModalList();
+      refreshIcons();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function renderProjectModalList() {
+      const list = document.getElementById('projectList');
+      list.innerHTML = state.projects.map(p => `
+        <div class="flex items-center justify-between bg-navy-800 border border-slate-700 rounded-xl px-3 py-2">
+          <span class="text-sm font-medium text-white">${p}</span>
+          <button type="button" onclick="removeProject('${p}')" class="text-rose-400 hover:text-rose-300 text-xs font-semibold px-2 py-1 rounded hover:bg-rose-500/10 transition">
+            Sil
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function addProject() {
+      const input = document.getElementById('newProjectInput');
+      const val = input.value.trim();
+      if (!val) return;
+      if (state.projects.includes(val)) {
+        showToast('Bu proje zaten mevcut.', 'error');
+        return;
+      }
+      state.projects.push(val);
+      input.value = '';
+      saveState();
+      renderProjectModalList();
+      populateBulkProjectSelect();
+      populateManualPersonProject();
+      if (state.activeTab === 'daily') renderDailyTab();
+      showToast(`"${val}" projesi eklendi.`, 'success');
+    }
+
+    function removeProject(proj) {
+      if (state.projects.length <= 1) {
+        showToast('En az 1 proje kalmalıdır.', 'error');
+        return;
+      }
+      state.projects = state.projects.filter(p => p !== proj);
+      saveState();
+      renderProjectModalList();
+      populateBulkProjectSelect();
+      populateManualPersonProject();
+      if (state.activeTab === 'daily') renderDailyTab();
+      showToast(`"${proj}" projesi silindi.`, 'info');
+    }
+
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const colors = {
+        success: 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200',
+        error: 'bg-rose-950/90 border-rose-500/50 text-rose-200',
+        info: 'bg-navy-800/95 border-cyan-500/40 text-cyan-100'
+      };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-xl text-xs sm:text-sm font-medium transition-all duration-300 ${colors[type] || colors.info}`;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => el.remove(), 300);
+      }, 3200);
+    }
+  </script>
+</body>
+</html>
